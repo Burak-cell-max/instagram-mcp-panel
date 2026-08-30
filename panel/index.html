@@ -87,6 +87,12 @@
       <textarea id="caption" maxlength="2200" placeholder="Metin + #hashtag…"></textarea>
       <div class="count"><span id="cc">0</span> / 2200</div>
 
+      <label class="row" style="margin:14px 0 0;cursor:pointer;font-size:13px;color:var(--txt)">
+        <input type="checkbox" id="autofit" checked style="width:auto">
+        Boyutu otomatik ayarla (Instagram oranına kenar ekle)
+      </label>
+      <div class="hint" id="fithint"></div>
+
       <label class="f">Collab davet (opsiyonel)</label>
       <input id="collab" type="text" placeholder="kullaniciadi1, kullaniciadi2 (en fazla 3)"
              style="width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:9px 11px;font:inherit">
@@ -202,8 +208,10 @@ async function addFiles(list){
     if(!ok){ toast('yükleme hatası: '+(data.detail||''),'err'); continue; }
     uploads.push(data); renderThumbs();
   }
-  autoKind();
+  autoKind(); updateFitHint();
 }
+$('#autofit').addEventListener('change', updateFitHint);
+$('#kind').addEventListener('change', updateFitHint);
 
 function renderThumbs(){
   const el = $('#thumbs'); el.innerHTML='';
@@ -219,7 +227,7 @@ function renderThumbs(){
 async function rmUpload(i){
   const u = uploads[i];
   fetch('/api/media/'+u.filename+'/delete',{method:'POST'});
-  uploads.splice(i,1); renderThumbs();
+  uploads.splice(i,1); renderThumbs(); updateFitHint();
 }
 function autoKind(){
   const hasVid = uploads.some(u=>u.kind==='video');
@@ -232,12 +240,23 @@ $('#caption').addEventListener('input', e=> $('#cc').textContent = e.target.valu
 
 function payload(){
   const collab = $('#collab').value.trim();
+  const extra = {auto_fit: $('#autofit').checked};
+  if(collab) extra.collaborators = collab;
   return {
     kind: $('#kind').value,
     filenames: uploads.map(u=>u.filename),
     caption: $('#caption').value.trim() || null,
-    extra: collab ? {collaborators: collab} : {},
+    extra,
   };
+}
+
+function updateFitHint(){
+  const odd = uploads.filter(u=>u.kind==='image' && u.feed_fits===false);
+  const el = $('#fithint');
+  if(!odd.length){ el.textContent=''; return; }
+  el.textContent = $('#autofit').checked
+    ? `${odd.length} görsel Instagram oranı dışında — bulanık kenar eklenecek`
+    : `⚠️ ${odd.length} görsel Instagram oranı dışında — kapalıyken reddedilebilir`;
 }
 
 async function publish(){

@@ -29,7 +29,7 @@ from fastapi.staticfiles import StaticFiles  # noqa: E402
 from instagram_mcp import auth as ig_auth  # noqa: E402
 from instagram_mcp import server as ig  # noqa: E402
 from instagram_mcp import validators as V  # noqa: E402
-from panel import store  # noqa: E402
+from panel import media_prep, store  # noqa: E402
 from panel.tunnel import Tunnel  # noqa: E402
 
 IMAGE_EXT = {".jpg", ".jpeg", ".png"}
@@ -110,8 +110,16 @@ async def upload(file: UploadFile) -> dict[str, Any]:
         while chunk := await file.read(1 << 20):
             size += len(chunk)
             fh.write(chunk)
-    return {"filename": name, "size": size, "kind": _kind_for(dest),
-            "url_hint": f"/m/{name}"}
+    kind = _kind_for(dest)
+    ratio = fits = None
+    if kind == "image":
+        try:
+            ratio = round(media_prep.ratio_of(dest), 3)
+            fits = media_prep.FEED_MIN <= ratio <= media_prep.FEED_MAX
+        except Exception:  # noqa: BLE001
+            pass
+    return {"filename": name, "size": size, "kind": kind,
+            "ratio": ratio, "feed_fits": fits, "url_hint": f"/m/{name}"}
 
 
 def _wait_ready(client: Any, cid: str, *, timeout: int = 300, interval: int = 4) -> None:
@@ -148,12 +156,38 @@ def _publish_container(client: Any, uid: str, cid: str) -> dict[str, Any]:
     raise last or RuntimeError("media_publish failed")
 
 
+def _prep_filenames(kind: str, filenames: list[str], auto_fit: bool) -> list[str]:
+    """Fit images to an Instagram-legal aspect ratio (blurred-bar padding) unless the
+    caller opted out. Videos pass through. Carousels are made uniform."""
+    if not auto_fit or kind in {"reel", "video"}:
+        return filenames
+    paths = [MEDIA_DIR / fn for fn in filenames]
+    images = [p for p in paths if _kind_for(p) == "image"]
+    if not images:
+        return filenames
+
+    if kind == "carousel" and len(images) > 1:
+        ratios = sorted(media_prep.ratio_of(p) for p in images)
+        shared = ratios[len(ratios) // 2]
+        shared = min(media_prep.FEED_MAX, max(media_prep.FEED_MIN, shared))
+        return [media_prep.fit(p, mode="feed", target_ratio=shared).name if _kind_for(p) == "image"
+                else p.name for p in paths]
+
+    mode = "story" if kind == "story" else "feed"
+    return [media_prep.fit(p, mode=mode).name if _kind_for(p) == "image" else p.name
+            for p in paths]
+
+
 def _publish(kind: str, filenames: list[str], caption: str | None,
              extra: dict[str, Any] | None = None) -> dict[str, Any]:
     extra = extra or {}
     for fn in filenames:
         if not (MEDIA_DIR / fn).exists():
             raise HTTPException(404, f"media {fn!r} not found — re-upload")
+    try:
+        filenames = _prep_filenames(kind, filenames, extra.get("auto_fit", True))
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": f"image prep failed: {exc}", "error_class": "validation"}
     urls = [_public_url(fn) for fn in filenames]
     cap = V.validate_caption(caption) if caption else None
 

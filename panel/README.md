@@ -59,6 +59,10 @@ Opens `http://127.0.0.1:8787`. On Windows you can double-click `panel/start.bat`
   the panel is running.
 - **Collaborators** — feed image / carousel / reel only, up to 3 usernames, exact
   spelling (no search). Invitees accept in their own app.
+- **Aspect ratio** — Instagram rejects feed images outside 4:5–1.91:1. "Boyutu
+  otomatik ayarla" (on by default) keeps the whole image and pads the short axis with
+  a blurred zoomed copy of itself, so any portrait/banner/screenshot publishes. Stories
+  pad to 9:16; carousels are made uniform. Turn it off to send the raw file.
 - **Publishing flow** — the panel creates the media container, polls until Instagram
   reports `FINISHED`, then publishes. Publishing too early returns
   "Media ID is not available".
