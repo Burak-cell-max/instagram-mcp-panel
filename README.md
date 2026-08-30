@@ -6,9 +6,13 @@ An [MCP](https://modelcontextprotocol.io) server for the **official Instagram Gr
 
 29 tools across accounts, media, publishing, insights, comments, discovery, and (review-gated) direct messages.
 
+Ships with an optional **[local publishing panel](panel/README.md)** — a self-hosted web UI to drag in an image/video, write a caption, and publish (feed / carousel / reel / video / story), with collaborator invites and a scheduled-post queue.
+
 ```
 npx-style stdio MCP · Python · FastMCP · MIT
 ```
+
+> Fork of [adelaidasofia/instagram-mcp](https://github.com/adelaidasofia/instagram-mcp) with the local panel added.
 
 ## Why this one
 
@@ -56,6 +60,23 @@ Register it with your MCP client (Claude Desktop / Claude Code) — single-accou
 `instagram-mcp` is the console script the package installs. From a source checkout it lives at `.venv/bin/instagram-mcp`, or run the module directly with `python -m instagram_mcp.server`.
 
 Or skip the env vars and call `add_account` at runtime (token goes to your OS keychain). See [Multiple accounts](#multiple-accounts).
+
+## Local panel
+
+A self-hosted web UI for publishing without an MCP client. Runs entirely on your machine; a
+cloudflared quick tunnel (no Cloudflare account) briefly exposes only the upload folder so
+Instagram can fetch the media.
+
+```bash
+pip install -e . && pip install -r panel/requirements.txt
+cp .mcp.json.example .mcp.json            # then fill in token + IG user id
+python -m panel.get_cloudflared
+python -m panel.run                       # opens http://127.0.0.1:8787
+```
+
+Drag in an image/video → caption → publish (feed image, carousel 2–10, reel, video, story).
+Collaborator invites, a scheduled-post queue, live quota, and recent-post insights. Full
+details in **[panel/README.md](panel/README.md)**.
 
 ## Tools
 

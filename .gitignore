@@ -14,6 +14,7 @@ admin.env
 .env
 accounts.json
 tokens.json
+.mcp.json
 audit.log.jsonl
 *.log.jsonl
 
@@ -21,3 +22,10 @@ audit.log.jsonl
 dist/
 build/
 uv.lock
+.claude/settings.local.json
+
+# Panel — local runtime state, uploads, and the bundled tunnel binary
+panel/bin/
+panel/media/*
+!panel/media/.gitkeep
+panel/queue.db*

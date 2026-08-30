@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "instagram": {
+      "command": ".venv/Scripts/instagram-mcp.exe",
+      "env": {
+        "INSTAGRAM_MCP_ACCESS_TOKEN": "",
+        "INSTAGRAM_MCP_IG_USER_ID": "",
+        "INSTAGRAM_MCP_BASE_HOST": "graph.instagram.com"
+      }
+    }
+  }
+}

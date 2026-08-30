@@ -56,7 +56,7 @@ COMMENT_FIELDS = "id,text,username,timestamp,like_count,hidden"
 # and every insights tool accepts a `metrics`/`period` override so the caller can
 # adapt to whatever the live API wants. A version mismatch returns Meta's own
 # error (which names the right metric) rather than failing opaquely.
-DEFAULT_ACCOUNT_METRICS = "reach,impressions,profile_views,follower_count"
+DEFAULT_ACCOUNT_METRICS = "reach,profile_views,follower_count,total_interactions"
 DEFAULT_MEDIA_METRICS = "reach,saved,likes,comments,shares,total_interactions"
 DEFAULT_AUDIENCE_METRIC = "follower_demographics"
 
