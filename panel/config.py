@@ -1,18 +1,34 @@
-"""Load the Instagram token/config from the project .mcp.json and put it in the env
-so `instagram_mcp` resolves the same account the MCP server uses. No separate .env.
+"""Load the Instagram token/config from .mcp.json and put it in the env so
+`instagram_mcp` resolves the same account the MCP server uses. No separate .env.
+
+Path model:
+  * source checkout — .mcp.json at the repo root; runtime files under panel/.
+  * frozen .exe (PyInstaller) — everything lives next to the executable, so the
+    user drops their .mcp.json beside "Instagram Panel.exe" and media/queue/state
+    are written there too.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-MCP_JSON = ROOT / ".mcp.json"
+_FROZEN = getattr(sys, "frozen", False)
 
-MEDIA_DIR = Path(__file__).parent / "media"
-QUEUE_DB = Path(__file__).parent / "queue.db"
+if _FROZEN:
+    DATA_DIR = Path(sys.executable).resolve().parent
+    MCP_JSON = DATA_DIR / ".mcp.json"
+    _RUNTIME = DATA_DIR
+else:
+    ROOT = Path(__file__).resolve().parent.parent
+    MCP_JSON = ROOT / ".mcp.json"
+    _RUNTIME = Path(__file__).resolve().parent
+
+MEDIA_DIR = _RUNTIME / "media"
+QUEUE_DB = _RUNTIME / "queue.db"
+STATE_JSON = _RUNTIME / "state.json"
 
 PANEL_PORT = int(os.environ.get("IG_PANEL_PORT", "8787"))
 MEDIA_PORT = int(os.environ.get("IG_PANEL_MEDIA_PORT", "8788"))
@@ -21,8 +37,10 @@ MEDIA_PORT = int(os.environ.get("IG_PANEL_MEDIA_PORT", "8788"))
 def load_env_from_mcp_json() -> dict[str, str]:
     if not MCP_JSON.exists():
         raise SystemExit(
-            f"{MCP_JSON} not found. Copy .mcp.json.example to .mcp.json and fill in "
-            "INSTAGRAM_MCP_ACCESS_TOKEN + INSTAGRAM_MCP_IG_USER_ID (see SETUP.md)."
+            f"{MCP_JSON} not found. "
+            + ("Put your .mcp.json next to the executable "
+               if _FROZEN else "Copy .mcp.json.example to .mcp.json ")
+            + "and fill in INSTAGRAM_MCP_ACCESS_TOKEN + INSTAGRAM_MCP_IG_USER_ID (see SETUP.md)."
         )
     data = json.loads(MCP_JSON.read_text(encoding="utf-8"))
     try:

@@ -16,9 +16,9 @@ from typing import Any
 
 import httpx
 
-from panel.config import MCP_JSON
+from panel.config import MCP_JSON, STATE_JSON
 
-STATE_PATH = Path(__file__).parent / "state.json"
+STATE_PATH = STATE_JSON
 _DEFAULT_LIFETIME = 60 * 24 * 3600  # Instagram long-lived tokens: ~60 days
 _GRAPH = "graph.instagram.com"
 _VER = os.environ.get("INSTAGRAM_MCP_GRAPH_VERSION", "v21.0")

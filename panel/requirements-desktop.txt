@@ -1,0 +1,6 @@
+# Desktop build — on top of `pip install -e . -r panel/requirements.txt`
+#   pip install -r panel/requirements-desktop.txt
+#   python -m panel.desktop            # run as a native window
+#   python panel/build_desktop.py      # -> dist/Instagram Panel.exe
+pywebview>=5.0
+pyinstaller>=6.0
