@@ -22,6 +22,7 @@ audit.log.jsonl
 dist/
 build/
 *.spec
+installer/Output/
 uv.lock
 .claude/settings.local.json
 

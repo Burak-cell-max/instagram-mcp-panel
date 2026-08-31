@@ -32,7 +32,9 @@ from instagram_mcp import validators as V  # noqa: E402
 from panel import account, ai, media_prep, store  # noqa: E402
 from panel.tunnel import Tunnel  # noqa: E402
 
-if not account.STATE_PATH.exists():
+from panel.config import has_token  # noqa: E402
+
+if has_token() and not account.STATE_PATH.exists():
     account.mark_token_set()  # assume the configured token is fresh (~60 days)
 
 IMAGE_EXT = {".jpg", ".jpeg", ".png"}
@@ -82,6 +84,10 @@ def _kind_for(path: Path) -> str:
 
 @control.get("/api/state")
 def state() -> dict[str, Any]:
+    if not has_token():
+        return {"health": {"ok": False}, "quota": None,
+                "tunnel": tunnel.url if tunnel.alive else None,
+                "token_days_left": None, "needs_setup": True}
     health = ig.healthcheck()
     limit = ig.publishing_limit()
     quota = None

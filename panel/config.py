@@ -34,23 +34,38 @@ PANEL_PORT = int(os.environ.get("IG_PANEL_PORT", "8787"))
 MEDIA_PORT = int(os.environ.get("IG_PANEL_MEDIA_PORT", "8788"))
 
 
+_BLANK = {
+    "mcpServers": {
+        "instagram": {
+            "command": "instagram-mcp",
+            "env": {
+                "INSTAGRAM_MCP_ACCESS_TOKEN": "",
+                "INSTAGRAM_MCP_IG_USER_ID": "",
+                "INSTAGRAM_MCP_BASE_HOST": "graph.instagram.com",
+            },
+        }
+    }
+}
+
+
+def has_token() -> bool:
+    return bool(os.environ.get("INSTAGRAM_MCP_ACCESS_TOKEN"))
+
+
 def load_env_from_mcp_json() -> dict[str, str]:
+    """Populate os.environ from .mcp.json. Missing file or empty token is NOT fatal —
+    the panel boots into a setup state so the user can paste a token in the Ayarlar
+    tab (this is how the installed build starts on first run)."""
     if not MCP_JSON.exists():
-        raise SystemExit(
-            f"{MCP_JSON} not found. "
-            + ("Put your .mcp.json next to the executable "
-               if _FROZEN else "Copy .mcp.json.example to .mcp.json ")
-            + "and fill in INSTAGRAM_MCP_ACCESS_TOKEN + INSTAGRAM_MCP_IG_USER_ID (see SETUP.md)."
-        )
-    data = json.loads(MCP_JSON.read_text(encoding="utf-8"))
+        MCP_JSON.write_text(json.dumps(_BLANK, indent=2) + "\n", encoding="utf-8")
     try:
+        data = json.loads(MCP_JSON.read_text(encoding="utf-8"))
         env = data["mcpServers"]["instagram"]["env"]
-    except (KeyError, TypeError) as exc:
-        raise SystemExit(f"{MCP_JSON}: mcpServers.instagram.env missing") from exc
+    except (KeyError, TypeError, json.JSONDecodeError):
+        MCP_JSON.write_text(json.dumps(_BLANK, indent=2) + "\n", encoding="utf-8")
+        env = _BLANK["mcpServers"]["instagram"]["env"]
     for k, v in env.items():
         if v:
             os.environ.setdefault(k, str(v))
-    if not os.environ.get("INSTAGRAM_MCP_ACCESS_TOKEN"):
-        raise SystemExit("INSTAGRAM_MCP_ACCESS_TOKEN is empty in .mcp.json")
     MEDIA_DIR.mkdir(parents=True, exist_ok=True)
     return env

@@ -249,8 +249,19 @@ function tab(name){
 $$('#nav button').forEach(b=>b.onclick=()=>tab(b.dataset.t));
 
 // ---------- header / state ----------
+let setupShown=false;
 async function refreshAll(){
   const {data} = await j('/api/state');
+  const bar=$('#tokbar');
+  if(data.needs_setup){
+    bar.classList.remove('hide');
+    $('#tokbarmsg').textContent='⚙️ Kurulum gerekli — Ayarlar sekmesinden Instagram token\'ı gir.';
+    $('#acct').textContent='kurulum'; $('#acct').className='badge warn';
+    $('#quota').textContent='kota —'; $('#tok').textContent='token yok'; $('#tok').className='badge err';
+    $('#tun').textContent=data.tunnel?'tünel açık':'tünel yok'; $('#tun').className='badge '+(data.tunnel?'ok':'err');
+    if(!setupShown){ setupShown=true; tab('ayarlar'); }
+    return;
+  }
   const h=data.health||{}, live=h.live_check||{};
   $('#acct').textContent = live.username ? '@'+live.username : 'hesap yok';
   $('#acct').className = 'badge '+(h.ok?'ok':'err');
@@ -259,7 +270,6 @@ async function refreshAll(){
   const tb=$('#tok');
   if(d==null){ tb.textContent='token ?'; tb.className='badge'; }
   else { tb.textContent=`token ${d}g`; tb.className='badge '+(d<3?'err':d<7?'warn':'ok'); }
-  const bar=$('#tokbar');
   if(d!=null && d<7){ bar.classList.remove('hide'); $('#tokbarmsg').textContent=`⚠️ Erişim token'ı ${d} gün içinde dolacak.`; }
   else bar.classList.add('hide');
   $('#tun').textContent = data.tunnel?'tünel açık':'tünel yok';

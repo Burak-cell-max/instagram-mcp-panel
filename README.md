@@ -76,8 +76,13 @@ python -m panel.run                       # opens http://127.0.0.1:8787
 (`cloudflared` auto-downloads into `panel/bin/` on first run.)
 
 Drag in an image/video → caption → publish (feed image, carousel 2–10, reel, video, story).
-Collaborator invites, a scheduled-post queue, live quota, and recent-post insights. Full
-details in **[panel/README.md](panel/README.md)**.
+Collaborator invites, a scheduled-post queue, live quota, recent-post insights, comment
+management, and optional AI caption/reply drafts. Tabbed UI, dark theme.
+
+Runs as a native window (`python -m panel.desktop`) or a single installed app —
+`python installer/build.py` → `Instagram-Panel-Setup.exe` (per-user, no admin;
+paste the token in the app's Ayarlar tab on first run). Full details in
+**[panel/README.md](panel/README.md)** and **[installer/README.md](installer/README.md)**.
 
 ## Tools
 
