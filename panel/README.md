@@ -50,6 +50,17 @@ python -m panel.run
 Opens `http://127.0.0.1:8787`. On Windows you can double-click `panel/start.bat`.
 `Ctrl+C` stops the panel and the tunnel.
 
+### Native window / single executable
+
+```bash
+pip install -r panel/requirements-desktop.txt
+python -m panel.desktop            # runs in a pywebview window, no browser/terminal
+python panel/build_desktop.py      # -> "dist/Instagram Panel(.exe)"
+```
+
+The bundled executable reads `.mcp.json` from the folder it sits in and writes
+`media/`, `queue.db`, `state.json` there too — so keep your `.mcp.json` next to it.
+
 ## Notes
 
 - **Media hosting** — the tunnel URL changes every run and is only up while the panel

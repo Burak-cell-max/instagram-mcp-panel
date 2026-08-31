@@ -21,6 +21,7 @@ audit.log.jsonl
 # Build
 dist/
 build/
+*.spec
 uv.lock
 .claude/settings.local.json
 
