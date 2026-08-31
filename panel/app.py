@@ -37,8 +37,17 @@ from panel.config import has_token  # noqa: E402
 if has_token() and not account.STATE_PATH.exists():
     account.mark_token_set()  # assume the configured token is fresh (~60 days)
 
-IMAGE_EXT = {".jpg", ".jpeg", ".png"}
+IMAGE_EXT = {".jpg", ".jpeg", ".png", ".heic", ".heif", ".webp"}
 VIDEO_EXT = {".mp4", ".mov"}
+# Instagram only ingests JPEG/PNG for images — anything else is transcoded on upload.
+_IG_OK_IMG = {".jpg", ".jpeg", ".png"}
+
+try:
+    import pillow_heif  # noqa: E402
+
+    pillow_heif.register_heif_opener()
+except Exception:  # noqa: BLE001
+    pass
 
 tunnel = Tunnel(port=0)  # port is set by run.py before start()
 
@@ -112,7 +121,7 @@ async def upload(file: UploadFile) -> dict[str, Any]:
     orig = Path(file.filename or "upload.bin")
     ext = orig.suffix.lower()
     if ext not in IMAGE_EXT | VIDEO_EXT:
-        raise HTTPException(400, f"unsupported type {ext!r}; allowed: jpg png mp4 mov")
+        raise HTTPException(400, f"desteklenmeyen tür {ext!r} — jpg, png, heic, webp, mp4, mov")
     name = f"{uuid.uuid4().hex}{ext}"
     dest = MEDIA_DIR / name
     size = 0
@@ -120,7 +129,23 @@ async def upload(file: UploadFile) -> dict[str, Any]:
         while chunk := await file.read(1 << 20):
             size += len(chunk)
             fh.write(chunk)
+
     kind = _kind_for(dest)
+    # transcode HEIC/WebP -> JPEG so Instagram can ingest it
+    if kind == "image" and ext not in _IG_OK_IMG:
+        try:
+            from PIL import Image, ImageOps
+            with Image.open(dest) as im:
+                im = ImageOps.exif_transpose(im).convert("RGB")
+                jpg = dest.with_suffix(".jpg")
+                im.save(jpg, "JPEG", quality=92)
+            dest.unlink(missing_ok=True)
+            dest, name = jpg, jpg.name
+            size = dest.stat().st_size
+        except Exception as exc:  # noqa: BLE001
+            dest.unlink(missing_ok=True)
+            raise HTTPException(400, f"{ext} görsel açılamadı: {exc}") from exc
+
     ratio = fits = None
     if kind == "image":
         try:

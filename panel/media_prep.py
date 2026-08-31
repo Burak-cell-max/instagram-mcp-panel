@@ -14,6 +14,13 @@ from pathlib import Path
 
 from PIL import Image, ImageFilter, ImageOps
 
+try:
+    import pillow_heif
+
+    pillow_heif.register_heif_opener()
+except Exception:  # noqa: BLE001
+    pass
+
 FEED_MIN, FEED_MAX = 0.8, 1.91          # width / height
 STORY_RATIO = 1080 / 1920               # 9:16
 _MAX_LONG_SIDE = 1920

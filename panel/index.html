@@ -115,7 +115,7 @@
       <div id="drop" class="drop">Görsel / video sürükle ya da <u>seç</u>
         <div class="hint">jpg · png · mp4 · mov — carousel için 2–10 görsel</div>
       </div>
-      <input id="file" type="file" accept="image/jpeg,image/png,video/mp4,video/quicktime" multiple hidden>
+      <input id="file" type="file" accept="image/jpeg,image/png,image/heic,image/heif,image/webp,.heic,.heif,video/mp4,video/quicktime" multiple hidden>
       <div id="thumbs" class="thumbs"></div>
 
       <label class="f">Tür</label>
@@ -232,7 +232,13 @@ const $$ = s => [...document.querySelectorAll(s)];
 let uploads = [], quotaFull = false, postLimit = 12, curMedia = [];
 
 function toast(m,c){const t=document.createElement('div');t.className='toast '+(c||'');t.innerHTML=m;$('#toasts').appendChild(t);setTimeout(()=>t.remove(),9000);}
-async function j(u,o){const r=await fetch(u,o);let d={};try{d=await r.json()}catch{}return{ok:r.ok,status:r.status,data:d};}
+async function j(u,o){
+  try{
+    const r=await fetch(u,o);
+    let d={};try{d=await r.json()}catch{}
+    return{ok:r.ok,status:r.status,data:d};
+  }catch(e){ return{ok:false,status:0,data:{error:'bağlantı yok — panel çalışıyor mu?'}}; }
+}
 function closeModal(){$('#modal').classList.remove('on');}
 function modal(html){$('#modalbox').innerHTML=html;$('#modal').classList.add('on');}
 
