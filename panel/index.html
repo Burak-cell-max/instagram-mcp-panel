@@ -46,7 +46,8 @@
   .thumb img,.thumb video{width:100%;height:100%;object-fit:cover}
   .thumb button{position:absolute;top:2px;right:2px;background:#000a;border:none;color:#fff;border-radius:6px;width:20px;height:20px}
   label.f{display:block;margin:14px 0 6px;color:var(--dim);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
-  select,textarea,input[type=text],input[type=datetime-local],input[type=password]{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:9px 11px;font:inherit}
+  select,textarea,input[type="text"],input[type="datetime-local"],input[type="password"]{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:9px 11px;font:inherit}
+  select{appearance:none;-webkit-appearance:none}
   textarea{resize:vertical;min-height:110px}
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .count{font-size:11px;color:var(--dim);text-align:right;margin-top:4px}
@@ -145,8 +146,20 @@
       <div class="hint">yalnızca görsel · carousel · reel</div>
 
       <label class="f">Zamanla (opsiyonel)</label>
-      <input id="when" type="datetime-local">
-      <div class="hint">boş = hemen · zamanlama yalnızca panel açıkken çalışır</div>
+      <div class="row" style="gap:6px;flex-wrap:wrap">
+        <button type="button" class="btn" data-mins="60">+1 saat</button>
+        <button type="button" class="btn" data-mins="180">+3 saat</button>
+        <button type="button" class="btn" data-at="tomorrow-9">Yarın 09:00</button>
+        <button type="button" class="btn" data-at="tomorrow-12">Yarın 12:00</button>
+        <button type="button" class="btn" data-at="tomorrow-18">Yarın 18:00</button>
+      </div>
+      <div class="row" style="gap:6px;margin-top:8px">
+        <select id="w-day" style="flex:2"></select>
+        <select id="w-hour" style="flex:1"></select>
+        <select id="w-min" style="flex:1"></select>
+        <button type="button" class="btn" onclick="clearWhen()">temizle</button>
+      </div>
+      <div class="hint" id="whenhint">boş = hemen · zamanlama yalnızca panel açıkken çalışır</div>
 
       <div id="quotawarn" class="warnline"></div>
       <div class="btns">
@@ -354,13 +367,54 @@ async function publish(){
     setTimeout(refreshAll,1500);
   } else toast('hata: '+(data.error||data.detail||JSON.stringify(data)),'err');
 }
+// ---------- schedule time picker (native <input datetime-local> is unreliable in WebView2) ----------
+const TR_DAYS=['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'], TR_MON=['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara'];
+function initWhen(){
+  const dsel=$('#w-day'); dsel.innerHTML='<option value="">— gün —</option>';
+  const now=new Date();
+  for(let i=0;i<21;i++){
+    const d=new Date(now); d.setDate(now.getDate()+i); d.setHours(0,0,0,0);
+    const lab=i===0?'Bugün':i===1?'Yarın':`${TR_DAYS[d.getDay()]} ${d.getDate()} ${TR_MON[d.getMonth()]}`;
+    dsel.insertAdjacentHTML('beforeend',`<option value="${d.getTime()}">${lab}</option>`);
+  }
+  const hsel=$('#w-hour'); hsel.innerHTML='<option value="">saat</option>';
+  for(let h=0;h<24;h++) hsel.insertAdjacentHTML('beforeend',`<option value="${h}">${String(h).padStart(2,'0')}</option>`);
+  const msel=$('#w-min'); msel.innerHTML='';
+  for(const m of [0,15,30,45]) msel.insertAdjacentHTML('beforeend',`<option value="${m}">${String(m).padStart(2,'0')}</option>`);
+  [dsel,hsel,msel].forEach(s=>s.addEventListener('change',showWhen));
+  document.querySelectorAll('[data-mins],[data-at]').forEach(b=>b.addEventListener('click',()=>applyPreset(b.dataset)));
+}
+function applyPreset(ds){
+  let t;
+  if(ds.mins){ t=new Date(Date.now()+(+ds.mins)*60000); }
+  else { t=new Date(); t.setDate(t.getDate()+1); const h=+ds.at.split('-')[1]; t.setHours(h,0,0,0); }
+  // round minutes to nearest 15
+  const m=[0,15,30,45].reduce((a,b)=>Math.abs(b-t.getMinutes())<Math.abs(a-t.getMinutes())?b:a);
+  const day=new Date(t); day.setHours(0,0,0,0);
+  $('#w-day').value=String(day.getTime()); $('#w-hour').value=String(t.getHours()); $('#w-min').value=String(m);
+  showWhen();
+}
+function scheduledTime(){
+  const d=$('#w-day').value, h=$('#w-hour').value;
+  if(!d||h==='') return null;
+  return (+d + (+h)*3600000 + (+$('#w-min').value)*60000)/1000;
+}
+function showWhen(){
+  const s=scheduledTime();
+  $('#whenhint').textContent = s
+    ? 'Zamanlandı: '+new Date(s*1000).toLocaleString('tr-TR')+(s*1000<Date.now()?' — geçmiş!':'')
+    : 'boş = hemen · zamanlama yalnızca panel açıkken çalışır';
+}
+function clearWhen(){ $('#w-day').value=''; $('#w-hour').value=''; $('#w-min').value='0'; showWhen(); }
+
 async function scheduleJob(){
   if(!uploads.length)return toast('önce dosya yükle','err');
-  const w=$('#when').value; if(!w)return toast('zaman seç','err');
-  const p=payload();p.scheduled_at=new Date(w).getTime()/1000;
+  const s=scheduledTime(); if(!s)return toast('gün ve saat seç (ya da bir hazır seçenek)','err');
+  if(s*1000<Date.now())return toast('seçilen zaman geçmişte','err');
+  const p=payload();p.scheduled_at=s;
   const {ok,data}=await j('/api/schedule',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(p)});
-  if(ok){toast('kuyruğa eklendi','ok');uploads=[];renderThumbs();$('#caption').value='';$('#when').value='';}
-  else toast('hata: '+(data.detail||''),'err');
+  if(ok){toast('kuyruğa eklendi ✓ '+new Date(s*1000).toLocaleString('tr-TR'),'ok');uploads=[];renderThumbs();$('#caption').value='';$('#cc').textContent='0';clearWhen();}
+  else toast('hata: '+(data.detail||data.error||''),'err');
 }
 
 // ---------- takvim ----------
@@ -555,6 +609,7 @@ async function aiPolish(){
   else toast('hata: '+(data.error||''),'err');
 }
 
+initWhen();
 refreshAll();
 loadAI();
 setInterval(refreshAll,60000);
