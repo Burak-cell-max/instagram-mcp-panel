@@ -67,3 +67,7 @@ Opens `http://127.0.0.1:8787`. On Windows you can double-click `panel/start.bat`
   reports `FINISHED`, then publishes. Publishing too early returns
   "Media ID is not available".
 - Publishing quota is Instagram's: ~100 API posts per rolling 24h.
+- **AI (optional)** — add a Groq API key in the Ayarlar tab to unlock "✨ Caption üret"
+  / "✨ Parlat" and per-comment "✨ AI taslak" reply drafts. Text only (no vision on
+  the free tier), so captions are written from a short brief you type. Key lives in
+  gitignored `panel/state.json`; every AI control is hidden when no key is set.
