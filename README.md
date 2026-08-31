@@ -70,9 +70,10 @@ Instagram can fetch the media.
 ```bash
 pip install -e . && pip install -r panel/requirements.txt
 cp .mcp.json.example .mcp.json            # then fill in token + IG user id
-python -m panel.get_cloudflared
 python -m panel.run                       # opens http://127.0.0.1:8787
 ```
+
+(`cloudflared` auto-downloads into `panel/bin/` on first run.)
 
 Drag in an image/video → caption → publish (feed image, carousel 2–10, reel, video, story).
 Collaborator invites, a scheduled-post queue, live quota, and recent-post insights. Full

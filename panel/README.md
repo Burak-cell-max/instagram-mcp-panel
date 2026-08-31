@@ -34,18 +34,15 @@ browser  ──▶  127.0.0.1:8787   (control UI + API, localhost only)
    `INSTAGRAM_MCP_ACCESS_TOKEN` and `INSTAGRAM_MCP_IG_USER_ID`. See [../SETUP.md](../SETUP.md)
    for how to get them. `.mcp.json` is gitignored.
 
-3. Get the tunnel binary:
-
-   ```bash
-   python -m panel.get_cloudflared      # downloads into panel/bin/
-   ```
-   (or install `cloudflared` yourself and put it on PATH.)
-
 ## Run
 
 ```bash
 python -m panel.run
 ```
+
+On first run the panel downloads `cloudflared` (~55 MB, Cloudflare's tunnel client,
+Apache-2.0) into `panel/bin/` if it isn't already there or on your PATH. To fetch it
+ahead of time: `python -m panel.get_cloudflared`.
 
 Opens `http://127.0.0.1:8787`. On Windows you can double-click `panel/start.bat`.
 `Ctrl+C` stops the panel and the tunnel.

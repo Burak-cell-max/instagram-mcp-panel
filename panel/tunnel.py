@@ -15,14 +15,26 @@ import threading
 import time
 from pathlib import Path
 
-_BUNDLED = Path(__file__).parent / "bin" / ("cloudflared.exe" if sys.platform == "win32" else "cloudflared")
 _URL_RE = re.compile(r"https://[a-z0-9-]+\.trycloudflare\.com")
 
 
-def _resolve_bin() -> str | None:
-    if _BUNDLED.exists():
-        return str(_BUNDLED)
-    return shutil.which("cloudflared")
+def _resolve_bin(auto_download: bool = True) -> str | None:
+    """Bundled binary -> PATH -> (last resort) download it. cloudflared is a single
+    static binary from Cloudflare's GitHub releases; a "quick tunnel" needs no account."""
+    from panel import get_cloudflared
+
+    if get_cloudflared.bundled_path().exists():
+        return str(get_cloudflared.bundled_path())
+    on_path = shutil.which("cloudflared")
+    if on_path:
+        return on_path
+    if auto_download:
+        try:
+            print("  cloudflared not found — downloading it once (~30-60 MB) ...")
+            return str(get_cloudflared.main())
+        except Exception as exc:  # noqa: BLE001
+            print(f"  auto-download failed: {exc}")
+    return None
 
 
 class Tunnel:
@@ -39,8 +51,9 @@ class Tunnel:
             binary = _resolve_bin()
             if not binary:
                 raise RuntimeError(
-                    "cloudflared not found. Put it at panel/bin/cloudflared[.exe] "
-                    "(python -m panel.get_cloudflared) or install it on PATH."
+                    "cloudflared unavailable — auto-download failed and it's not on PATH. "
+                    "Install it manually (https://github.com/cloudflare/cloudflared) "
+                    "or run: python -m panel.get_cloudflared"
                 )
             self._proc = subprocess.Popen(
                 [binary, "tunnel", "--url", f"http://localhost:{self.port}", "--no-autoupdate"],
