@@ -29,3 +29,4 @@ panel/bin/
 panel/media/*
 !panel/media/.gitkeep
 panel/queue.db*
+panel/state.json

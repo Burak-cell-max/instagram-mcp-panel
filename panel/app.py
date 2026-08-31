@@ -29,8 +29,11 @@ from fastapi.staticfiles import StaticFiles  # noqa: E402
 from instagram_mcp import auth as ig_auth  # noqa: E402
 from instagram_mcp import server as ig  # noqa: E402
 from instagram_mcp import validators as V  # noqa: E402
-from panel import media_prep, store  # noqa: E402
+from panel import account, media_prep, store  # noqa: E402
 from panel.tunnel import Tunnel  # noqa: E402
+
+if not account.STATE_PATH.exists():
+    account.mark_token_set()  # assume the configured token is fresh (~60 days)
 
 IMAGE_EXT = {".jpg", ".jpeg", ".png"}
 VIDEO_EXT = {".mp4", ".mov"}
@@ -94,6 +97,7 @@ def state() -> dict[str, Any]:
         "health": health,
         "quota": quota,
         "tunnel": tunnel.url if tunnel.alive else None,
+        "token_days_left": account.token_days_left(),
     }
 
 
@@ -317,6 +321,79 @@ def preview(filename: str) -> FileResponse:
     if not p.exists() or p.parent != MEDIA_DIR:
         raise HTTPException(404, "not found")
     return FileResponse(p, media_type=mimetypes.guess_type(str(p))[0] or "application/octet-stream")
+
+
+# --------------------------------------------------------------------------- #
+# account + token
+# --------------------------------------------------------------------------- #
+@control.get("/api/account")
+def account_status() -> dict[str, Any]:
+    return account.status()
+
+
+@control.post("/api/account/refresh")
+def account_refresh() -> JSONResponse:
+    r = account.refresh()
+    return JSONResponse(r, status_code=200 if r.get("ok") else 502)
+
+
+@control.post("/api/account/token")
+def account_set_token(payload: dict[str, Any]) -> JSONResponse:
+    tok = (payload.get("access_token") or "").strip()
+    if not tok:
+        raise HTTPException(400, "access_token required")
+    r = account.set_token(tok, (payload.get("ig_user_id") or "").strip() or None)
+    return JSONResponse(r, status_code=200 if r.get("ok") else 400)
+
+
+@control.get("/api/accounts")
+def accounts_list() -> dict[str, Any]:
+    return ig.list_accounts()
+
+
+# --------------------------------------------------------------------------- #
+# analytics
+# --------------------------------------------------------------------------- #
+@control.get("/api/analytics")
+def analytics() -> dict[str, Any]:
+    out: dict[str, Any] = {"profile": ig.get_profile(), "account_insights": ig.get_account_insights()}
+    for bd in ("country", "gender", "age"):
+        out[f"audience_{bd}"] = ig.get_audience_insights(metric="follower_demographics", breakdown=bd)
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# comments + mentions
+# --------------------------------------------------------------------------- #
+@control.get("/api/comments/{media_id}")
+def comments(media_id: str, limit: int = 25) -> dict[str, Any]:
+    return ig.get_comments(media_id=media_id, limit=limit)
+
+
+@control.post("/api/comments/reply")
+def comment_reply(payload: dict[str, Any]) -> JSONResponse:
+    cid = (payload.get("comment_id") or "").strip()
+    msg = (payload.get("message") or "").strip()
+    if not cid or not msg:
+        raise HTTPException(400, "comment_id and message required")
+    r = ig.reply_to_comment(comment_id=cid, message=msg)
+    return JSONResponse(r, status_code=200 if r.get("ok", True) and "error" not in r else 502)
+
+
+@control.post("/api/comments/hide")
+def comment_hide(payload: dict[str, Any]) -> dict[str, Any]:
+    cid = (payload.get("comment_id") or "").strip()
+    return ig.hide_comment(comment_id=cid, hide=bool(payload.get("hide", True)))
+
+
+@control.delete("/api/comments/{comment_id}")
+def comment_delete(comment_id: str) -> dict[str, Any]:
+    return ig.delete_comment(comment_id=comment_id)
+
+
+@control.get("/api/mentions")
+def mentions(limit: int = 25) -> dict[str, Any]:
+    return ig.get_mentions(limit=limit)
 
 
 # --------------------------------------------------------------------------- #
