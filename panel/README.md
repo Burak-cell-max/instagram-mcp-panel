@@ -59,7 +59,9 @@ python panel/build_desktop.py      # -> "dist/Instagram Panel(.exe)"
 ```
 
 The bundled executable reads `.mcp.json` from the folder it sits in and writes
-`media/`, `queue.db`, `state.json` there too — so keep your `.mcp.json` next to it.
+`media/`, `queue.db`, `state.json` there too — so keep your `.mcp.json` next to
+`dist/Instagram Panel.exe`. That copy of `.mcp.json` holds your token; `dist/` is
+gitignored, don't share the folder.
 
 ## Notes
 
