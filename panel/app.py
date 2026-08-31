@@ -29,7 +29,7 @@ from fastapi.staticfiles import StaticFiles  # noqa: E402
 from instagram_mcp import auth as ig_auth  # noqa: E402
 from instagram_mcp import server as ig  # noqa: E402
 from instagram_mcp import validators as V  # noqa: E402
-from panel import account, media_prep, store  # noqa: E402
+from panel import account, ai, media_prep, store  # noqa: E402
 from panel.tunnel import Tunnel  # noqa: E402
 
 if not account.STATE_PATH.exists():
@@ -394,6 +394,47 @@ def comment_delete(comment_id: str) -> dict[str, Any]:
 @control.get("/api/mentions")
 def mentions(limit: int = 25) -> dict[str, Any]:
     return ig.get_mentions(limit=limit)
+
+
+# --------------------------------------------------------------------------- #
+# AI (optional, Groq)
+# --------------------------------------------------------------------------- #
+@control.get("/api/ai/status")
+def ai_status() -> dict[str, Any]:
+    return {"configured": ai.configured()}
+
+
+@control.post("/api/ai/key")
+def ai_key(payload: dict[str, Any]) -> JSONResponse:
+    r = ai.set_key((payload.get("key") or "").strip())
+    return JSONResponse(r, status_code=200 if r.get("ok") else 400)
+
+
+@control.post("/api/ai/caption")
+def ai_caption(payload: dict[str, Any]) -> JSONResponse:
+    brief = (payload.get("brief") or "").strip()
+    if not brief:
+        raise HTTPException(400, "brief required")
+    r = ai.caption(brief, (payload.get("tone") or "kurumsal").strip())
+    return JSONResponse(r, status_code=200 if r.get("ok") else 502)
+
+
+@control.post("/api/ai/polish")
+def ai_polish(payload: dict[str, Any]) -> JSONResponse:
+    text = (payload.get("text") or "").strip()
+    if not text:
+        raise HTTPException(400, "text required")
+    r = ai.polish(text)
+    return JSONResponse(r, status_code=200 if r.get("ok") else 502)
+
+
+@control.post("/api/ai/reply")
+def ai_reply(payload: dict[str, Any]) -> JSONResponse:
+    c = (payload.get("comment") or "").strip()
+    if not c:
+        raise HTTPException(400, "comment required")
+    r = ai.reply(c, (payload.get("context") or "").strip())
+    return JSONResponse(r, status_code=200 if r.get("ok") else 502)
 
 
 # --------------------------------------------------------------------------- #

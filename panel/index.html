@@ -126,6 +126,10 @@
       <label class="f">Caption</label>
       <textarea id="caption" maxlength="2200" placeholder="Metin + #hashtag…"></textarea>
       <div class="count"><span id="cc">0</span> / 2200</div>
+      <div class="row" id="ai-caption-btns" style="display:none;margin-top:6px">
+        <button class="btn" onclick="aiCaption()">✨ Caption üret</button>
+        <button class="btn" onclick="aiPolish()">✨ Parlat</button>
+      </div>
 
       <label class="row" style="margin:14px 0 0;font-size:13px;color:var(--txt)">
         <input type="checkbox" id="autofit" checked style="width:auto"> Boyutu otomatik ayarla (Instagram oranına kenar ekle)
@@ -195,6 +199,14 @@
       <input id="newtok" type="password" placeholder="IGAA…">
       <div class="hint">Meta dashboard → Instagram API → Generate token. Doğrulanıp .mcp.json'a yazılır.</div>
       <div class="btns"><button class="btn" onclick="saveToken()">Kaydet ve doğrula</button></div>
+    </div>
+    <div class="card">
+      <h2>AI (Groq)</h2>
+      <div id="ai-status" class="muted">…</div>
+      <label class="f">Groq API anahtarı</label>
+      <input id="groqkey" type="password" placeholder="gsk_…">
+      <div class="hint">console.groq.com → API Keys. Caption üretimi ve yorum yanıt taslakları için. Yerel `panel/state.json`'a yazılır, git'e girmez.</div>
+      <div class="btns"><button class="btn" onclick="saveGroq()">Kaydet</button></div>
     </div>
     <div class="card"><h2>Hesaplar</h2><div id="accts"></div></div>
   </section>
@@ -418,12 +430,20 @@ async function loadComments(mid){
     <div>${c.text||''}</div>
     <div class="actions">
       <button onclick="cReply('${c.id}')">yanıtla</button>
+      ${aiOn?`<button onclick="cAiDraft('${c.id}',${JSON.stringify(c.text||'').replace(/"/g,'&quot;')})">✨ AI taslak</button>`:''}
       <button onclick="cHide('${c.id}',${!c.hidden})">${c.hidden?'göster':'gizle'}</button>
       <button onclick="cDel('${c.id}')">sil</button>
     </div></div>`).join(''):'<p class="muted">yorum yok</p>';
 }
-function cReply(id){
-  modal(`<h3>Yanıtla</h3><textarea id="rtext" placeholder="yanıt…"></textarea><div class="btns"><button class="btn primary" onclick="cReplySend('${id}')">gönder</button><button class="btn" onclick="closeModal()">iptal</button></div>`);
+function cReply(id,prefill){
+  modal(`<h3>Yanıtla</h3><textarea id="rtext" placeholder="yanıt…">${(prefill||'').replace(/</g,'&lt;')}</textarea><div class="btns"><button class="btn primary" onclick="cReplySend('${id}')">gönder</button><button class="btn" onclick="closeModal()">iptal</button></div>`);
+}
+async function cAiDraft(id,text){
+  toast('taslak üretiliyor…');
+  const ctx=(curMedia.find(m=>m.id===$('#cmt-media').value)||{}).caption||'';
+  const {ok,data}=await j('/api/ai/reply',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({comment:text,context:ctx})});
+  if(ok&&data.ok) cReply(id,data.text);
+  else toast('hata: '+(data.error||''),'err');
 }
 async function cReplySend(id){
   const t=$('#rtext').value.trim();if(!t)return;
@@ -449,6 +469,7 @@ async function loadSettings(){
   const {data:acc}=await j('/api/accounts');
   const list=acc.accounts||acc||[];
   $('#accts').innerHTML=Array.isArray(list)&&list.length?list.map(a=>`<div class="kv"><span>${a.label} ${a.default?'· <b>varsayılan</b>':''}</span><span class="v">${a.ig_user_id||''} · ${a.source||''}</span></div>`).join(''):'<p class="muted">tek hesap (env)</p>';
+  loadAI();
 }
 async function doRefresh(){
   if(!confirm("Token yenilenecek (+60 gün). Bu işlemi sık tekrarlama."))return;
@@ -463,7 +484,43 @@ async function saveToken(){
   else toast('hata: '+(data.error||data.detail||''),'err');
 }
 
+// ---------- AI ----------
+let aiOn=false;
+async function loadAI(){
+  const {data}=await j('/api/ai/status');
+  aiOn=!!data.configured;
+  $('#ai-caption-btns').style.display=aiOn?'flex':'none';
+  const s=$('#ai-status'); if(s) s.textContent=aiOn?'anahtar ayarlı ✓ — caption üret & yorum taslağı aktif':'anahtar yok — AI özellikleri kapalı';
+}
+async function saveGroq(){
+  const k=$('#groqkey').value.trim();if(!k)return;
+  const {ok,data}=await j('/api/ai/key',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:k})});
+  if(ok&&data.ok){toast('AI anahtarı kaydedildi ✓','ok');$('#groqkey').value='';loadAI();}
+  else toast('hata: '+(data.error||data.detail||''),'err');
+}
+function aiCaption(){
+  modal(`<h3>✨ Caption üret</h3>
+    <label class="f">Konu / brief</label><textarea id="ai-brief" placeholder="örn: yeni BitroGate lansmanı, düşük gecikme vurgusu"></textarea>
+    <label class="f">Ton</label><input id="ai-tone" type="text" value="kurumsal">
+    <div class="btns"><button class="btn primary" onclick="aiCaptionGo()">üret</button><button class="btn" onclick="closeModal()">iptal</button></div>`);
+}
+async function aiCaptionGo(){
+  const brief=$('#ai-brief').value.trim();if(!brief)return;
+  $('#modalbox').querySelector('.btns').innerHTML='<span class="muted">üretiliyor…</span>';
+  const {ok,data}=await j('/api/ai/caption',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({brief,tone:$('#ai-tone').value})});
+  if(ok&&data.ok){ $('#caption').value=data.text; $('#cc').textContent=data.text.length; closeModal(); toast('caption yerleştirildi — düzenleyip yayınla','ok'); }
+  else { closeModal(); toast('hata: '+(data.error||''),'err'); }
+}
+async function aiPolish(){
+  const t=$('#caption').value.trim();if(!t)return toast('önce metin yaz','err');
+  toast('parlatılıyor…');
+  const {ok,data}=await j('/api/ai/polish',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({text:t})});
+  if(ok&&data.ok){ $('#caption').value=data.text; $('#cc').textContent=data.text.length; toast('parlatıldı ✓','ok'); }
+  else toast('hata: '+(data.error||''),'err');
+}
+
 refreshAll();
+loadAI();
 setInterval(refreshAll,60000);
 </script>
 </body>
