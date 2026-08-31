@@ -29,6 +29,7 @@ args = [
     "--collect-all", "fastmcp",
     "--collect-all", "uvicorn",
     "--collect-all", "webview",
+    "--collect-all", "pillow_heif",
     "--hidden-import", "uvicorn.loops.asyncio",
     "--hidden-import", "uvicorn.protocols.http.h11_impl",
     "--hidden-import", "uvicorn.protocols.websockets.websockets_impl",
