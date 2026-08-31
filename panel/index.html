@@ -19,6 +19,9 @@
   .badge{font-size:12px;padding:4px 10px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--dim)}
   .badge.ok{color:var(--ok);border-color:#1f4128}
   .badge.err{color:var(--err);border-color:#5c2222}
+  .badge.warn{color:#d29922;border-color:#5c4a1f}
+  .warnline{font-size:12px;color:#d29922;margin:12px 0 0}
+  .warnline:empty{display:none}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
   @media(max-width:820px){.grid{grid-template-columns:1fr}}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
@@ -102,6 +105,8 @@
       <input id="when" type="datetime-local">
       <div class="hint">boş bırakırsan hemen yayınlanır · zamanlama yalnızca panel açıkken çalışır</div>
 
+      <div id="quotawarn" class="warnline"></div>
+
       <div class="btns">
         <button id="pub" class="act" onclick="publish()">Şimdi yayınla</button>
         <button id="sch" class="act sec" onclick="scheduleJob()">Kuyruğa ekle</button>
@@ -146,10 +151,30 @@ async function refresh(){
   const live = h.live_check||{};
   $('#acct').textContent = live.username ? '@'+live.username : 'hesap yok';
   $('#acct').className = 'badge ' + (h.ok ? 'ok':'err');
-  if(data.quota){ $('#quota').textContent = `kota ${data.quota.used}/${data.quota.total}`; }
+  applyQuota(data.quota);
   $('#tun').textContent = data.tunnel ? 'tünel açık' : 'tünel yok';
   $('#tun').className = 'badge ' + (data.tunnel ? 'ok':'err');
   loadJobs(); loadPosts();
+}
+
+let quotaFull = false;
+function applyQuota(q){
+  const badge = $('#quota');
+  if(!q || q.used==null || q.total==null){ badge.textContent='kota —'; badge.className='badge'; return; }
+  const pct = q.used / q.total;
+  badge.textContent = `kota ${q.used}/${q.total}`;
+  quotaFull = q.used >= q.total;
+  badge.className = 'badge ' + (quotaFull ? 'err' : pct >= 0.9 ? 'warn' : 'ok');
+  const w = $('#quotawarn');
+  if(quotaFull){
+    w.textContent = '⛔ Günlük yayın kotası doldu. Slotlar 24 saat içinde kademeli açılır — bekle ya da Instagram uygulamasından at.';
+  } else if(pct >= 0.9){
+    w.textContent = `⚠️ Kota %${Math.round(pct*100)} — ${q.total - q.used} yayın hakkı kaldı (24 saat kayan pencere).`;
+  } else {
+    w.textContent = '';
+  }
+  const pub = $('#pub');
+  if(pub){ pub.disabled = quotaFull; pub.textContent = quotaFull ? 'Kota doldu' : 'Şimdi yayınla'; }
 }
 
 async function loadJobs(){
@@ -261,6 +286,7 @@ function updateFitHint(){
 
 async function publish(){
   if(!uploads.length) return toast('önce dosya yükle','err');
+  if(quotaFull) return toast('günlük yayın kotası dolu — bekle ya da kuyruğa ekle','err');
   const b = $('#pub'); b.disabled=true; b.textContent='yayınlanıyor…';
   const {ok,data} = await j('/api/publish',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload())});
   b.disabled=false; b.textContent='Şimdi yayınla';
