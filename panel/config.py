@@ -3,9 +3,9 @@
 
 Path model:
   * source checkout — .mcp.json at the repo root; runtime files under panel/.
-  * frozen .exe (PyInstaller) — everything lives next to the executable, so the
-    user drops their .mcp.json beside "Instagram Panel.exe" and media/queue/state
-    are written there too.
+  * frozen .exe (PyInstaller) — a fixed per-user data dir, %APPDATA%/Instagram Panel
+    (override with IG_PANEL_DATA_DIR). Deterministic regardless of where the .exe
+    or its cwd end up; the installer drops a blank .mcp.json there.
 """
 
 from __future__ import annotations
@@ -17,15 +17,30 @@ from pathlib import Path
 
 _FROZEN = getattr(sys, "frozen", False)
 
+
+def _frozen_data_dir() -> Path:
+    override = os.environ.get("IG_PANEL_DATA_DIR")
+    if override:
+        return Path(override)
+    base = os.environ.get("APPDATA") or os.environ.get("XDG_DATA_HOME") or (Path.home() / ".local/share")
+    return Path(base) / "Instagram Panel"
+
+
 if _FROZEN:
-    DATA_DIR = Path(sys.executable).resolve().parent
-    MCP_JSON = DATA_DIR / ".mcp.json"
-    _RUNTIME = DATA_DIR
+    _RUNTIME = _frozen_data_dir()
+    _RUNTIME.mkdir(parents=True, exist_ok=True)
+    DATA_DIR = _RUNTIME
+    # accept a .mcp.json either in the data dir or next to the .exe (installer puts it in both places)
+    _beside_exe = Path(sys.executable).resolve().parent / ".mcp.json"
+    MCP_JSON = _RUNTIME / ".mcp.json"
+    if not MCP_JSON.exists() and _beside_exe.exists():
+        MCP_JSON = _beside_exe
 else:
     ROOT = Path(__file__).resolve().parent.parent
     MCP_JSON = ROOT / ".mcp.json"
     _RUNTIME = Path(__file__).resolve().parent
 
+DATA_DIR = _RUNTIME
 MEDIA_DIR = _RUNTIME / "media"
 QUEUE_DB = _RUNTIME / "queue.db"
 STATE_JSON = _RUNTIME / "state.json"

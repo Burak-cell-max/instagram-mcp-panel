@@ -18,7 +18,10 @@ from panel.config import MEDIA_PORT, PANEL_PORT
 
 
 def _serve(asgi, port: int, name: str) -> uvicorn.Server:
-    cfg = uvicorn.Config(asgi, host="127.0.0.1", port=port, log_level="warning")
+    # log_config=None: skip uvicorn's colourized formatter, which calls
+    # sys.stdout.isatty() and blows up in a --windowed frozen app (no real stdout).
+    cfg = uvicorn.Config(asgi, host="127.0.0.1", port=port, log_level="warning",
+                         log_config=None, access_log=False)
     srv = uvicorn.Server(cfg)
     threading.Thread(target=srv.run, name=name, daemon=True).start()
     return srv
@@ -46,7 +49,8 @@ class Panel:
         self._control = _serve(panel_app.control, PANEL_PORT, "control")
 
     def serve_control(self) -> None:
-        cfg = uvicorn.Config(panel_app.control, host="127.0.0.1", port=PANEL_PORT, log_level="warning")
+        cfg = uvicorn.Config(panel_app.control, host="127.0.0.1", port=PANEL_PORT,
+                             log_level="warning", log_config=None, access_log=False)
         self._control = uvicorn.Server(cfg)
         self._control.run()
 

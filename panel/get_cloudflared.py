@@ -18,16 +18,25 @@ import tarfile
 import urllib.request
 from pathlib import Path
 
-_FROZEN = getattr(sys, "frozen", False)
-BIN_DIR = (Path(sys.executable).resolve().parent / "bin") if _FROZEN \
-    else (Path(__file__).resolve().parent / "bin")
+from panel.config import _RUNTIME
+
+BIN_DIR = _RUNTIME / "bin"
 
 BASE = "https://github.com/cloudflare/cloudflared/releases/latest/download/"
 _LOCAL = "cloudflared.exe" if sys.platform == "win32" else "cloudflared"
 
 
 def bundled_path() -> Path:
-    return BIN_DIR / _LOCAL
+    """Where a downloaded copy lives, or a copy bundled into the PyInstaller exe."""
+    downloaded = BIN_DIR / _LOCAL
+    if downloaded.exists():
+        return downloaded
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        packed = Path(meipass) / "panel" / "bin" / _LOCAL
+        if packed.exists():
+            return packed
+    return downloaded
 
 
 def _arch() -> str:
