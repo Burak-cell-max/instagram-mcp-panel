@@ -2,5 +2,5 @@
 #   pip install -r panel/requirements-desktop.txt
 #   python -m panel.desktop            # run as a native window
 #   python panel/build_desktop.py      # -> dist/Instagram Panel.exe
-pywebview>=5.0
+pywebview>=6.2.1
 pyinstaller>=6.0
